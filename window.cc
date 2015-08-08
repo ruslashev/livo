@@ -5,9 +5,6 @@
 
 window::window()
 {
-	if (!glewInit())
-		die("Failed to initialze GLEW");
-
 	if (!glfwInit())
 		die("Failed to initialze GLFW");
 
@@ -16,6 +13,10 @@ window::window()
 		die("Failed to open window");
 
 	glfwMakeContextCurrent(glfw_window);
+
+	GLenum err = glewInit();
+	if (err != GLEW_OK)
+		die("Failed to initialze GLEW");
 }
 
 window::~window() {
@@ -73,8 +74,8 @@ GLuint create_shader(GLenum type, const char *path) {
 
 program::program(const char *vert_path, const char *frag_path) {
 	id = glCreateProgram();
-	GLuint shader1 = create_shader(GL_VERTEX_SHADER, "vertex.glsl");
-	GLuint shader2 = create_shader(GL_FRAGMENT_SHADER, "fragment.glsl");
+	GLuint shader1 = create_shader(GL_VERTEX_SHADER, vert_path);
+	GLuint shader2 = create_shader(GL_FRAGMENT_SHADER, frag_path);
 	glAttachShader(id, shader1);
 	glAttachShader(id, shader2);
 	glLinkProgram(id);
@@ -91,6 +92,7 @@ program::program(const char *vert_path, const char *frag_path) {
 		free(info);
 		die(std::string(buf));
 	}
+	else {puts("ya");}
 	glDetachShader(id, shader1);
 	glDetachShader(id, shader2);
 	glDeleteShader(shader1);

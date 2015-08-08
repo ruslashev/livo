@@ -4,7 +4,7 @@
 #include <string>
 #include <stdexcept>
 
-void die(std::string msg)
+static void die(std::string msg)
 {
 	throw std::runtime_error(msg);
 }
