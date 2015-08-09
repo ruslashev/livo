@@ -18,7 +18,7 @@
 
 program *prog = nullptr;
 GLint attribute_coord;
-GLint uniform_tex;
+GLint uniform_texture;
 GLint uniform_color;
 
 struct point {
@@ -44,25 +44,28 @@ FT_Face face;
  *
  * After the constructor is run, you don't need to use any FreeType functions anymore.
  */
+
+struct glyph_info {
+	float advance_x;
+	float advance_y;
+
+	float bitmap_w;
+	float bitmap_h;
+
+	float bitmap_left;
+	float bitmap_top;
+
+	float texture_offset_x;
+	float texture_offset_y;
+};
+
 struct atlas {
-	GLuint tex;		// texture object
+	GLuint texture;
 
-	unsigned int w;			// width of texture in pixels
-	unsigned int h;			// height of texture in pixels
+	unsigned int texture_width;
+	unsigned int texture_height;
 
-	struct {
-		float ax;	// advance.x
-		float ay;	// advance.y
-
-		float bw;	// bitmap.width;
-		float bh;	// bitmap.height;
-
-		float bl;	// bitmap_left;
-		float bt;	// bitmap_top;
-
-		float tx;	// x offset of glyph in texture coordinates
-		float ty;	// y offset of glyph in texture coordinates
-	} c[128];		// character information
+	std::vector<glyph_info> glyphs;
 
 	atlas(FT_Face face, int height) {
 		FT_Set_Pixel_Sizes(face, 0, height);
@@ -70,10 +73,10 @@ struct atlas {
 
 		unsigned int roww = 0;
 		unsigned int rowh = 0;
-		w = 0;
-		h = 0;
+		texture_width = 0;
+		texture_height = 0;
 
-		memset(c, 0, sizeof c);
+		glyphs.resize(128, { 0, 0, 0, 0, 0, 0, 0, 0 });
 
 		/* Find minimum size for a texture holding all visible ASCII characters */
 		for (int i = 32; i < 128; i++) {
@@ -82,8 +85,8 @@ struct atlas {
 				continue;
 			}
 			if (roww + g->bitmap.width + 1 >= MAXWIDTH) {
-				w = std::max(w, roww);
-				h += rowh;
+				texture_width = std::max(texture_width, roww);
+				texture_height += rowh;
 				roww = 0;
 				rowh = 0;
 			}
@@ -91,16 +94,16 @@ struct atlas {
 			rowh = std::max(rowh, g->bitmap.rows);
 		}
 
-		w = std::max(w, roww);
-		h += rowh;
+		texture_width = std::max(texture_width, roww);
+		texture_height += rowh;
 
 		/* Create a texture that will be used to hold all ASCII glyphs */
 		glActiveTexture(GL_TEXTURE0);
-		glGenTextures(1, &tex);
-		glBindTexture(GL_TEXTURE_2D, tex);
-		glUniform1i(uniform_tex, 0);
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glUniform1i(uniform_texture, 0);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, w, h, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, texture_width, texture_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
 
 		/* We require 1 byte alignment when uploading texture data */
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -132,27 +135,27 @@ struct atlas {
 			}
 
 			glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-			c[i].ax = g->advance.x >> 6;
-			c[i].ay = g->advance.y >> 6;
+			glyphs[i].advance_x = g->advance.x >> 6;
+			glyphs[i].advance_y = g->advance.y >> 6;
 
-			c[i].bw = g->bitmap.width;
-			c[i].bh = g->bitmap.rows;
+			glyphs[i].bitmap_w = g->bitmap.width;
+			glyphs[i].bitmap_h = g->bitmap.rows;
 
-			c[i].bl = g->bitmap_left;
-			c[i].bt = g->bitmap_top;
+			glyphs[i].bitmap_left = g->bitmap_left;
+			glyphs[i].bitmap_top = g->bitmap_top;
 
-			c[i].tx = ox / (float)w;
-			c[i].ty = oy / (float)h;
+			glyphs[i].texture_offset_x = ox / (float)texture_width;
+			glyphs[i].texture_offset_y = oy / (float)texture_height;
 
 			rowh = std::max(rowh, g->bitmap.rows);
 			ox += g->bitmap.width + 1;
 		}
 
-		fprintf(stderr, "Generated a %d x %d (%d kb) texture atlas\n", w, h, w * h / 1024);
+		fprintf(stderr, "Generated a %d x %d (%d kb) texture atlas\n", texture_width, texture_height, texture_width * texture_height / 1024);
 	}
 
 	~atlas() {
-		glDeleteTextures(1, &tex);
+		glDeleteTextures(1, &texture);
 	}
 };
 
@@ -170,7 +173,7 @@ int init_resources() {
 	prog = new program("vert.glsl", "frag.glsl");
 
 	attribute_coord = glGetAttribLocation(prog->id, "coord");
-	uniform_tex = glGetUniformLocation(prog->id, "tex");
+	uniform_texture = glGetUniformLocation(prog->id, "texture");
 	uniform_color = glGetUniformLocation(prog->id, "color");
 
 	// Create the vertex buffer object
@@ -189,12 +192,12 @@ int init_resources() {
  * Rendering starts at coordinates (x, y), z is always 0.
  * The pixel coordinates that the FreeType2 library uses are scaled by (sx, sy).
  */
-void render_text(const char *text, atlas * a, float x, float y, float sx, float sy) {
+void render_text(const char *text, atlas *a, float x, float y, float sx, float sy) {
 	const uint8_t *p;
 
 	/* Use the texture containing the atlas */
-	glBindTexture(GL_TEXTURE_2D, a->tex);
-	glUniform1i(uniform_tex, 0);
+	glBindTexture(GL_TEXTURE_2D, a->texture);
+	glUniform1i(uniform_texture, 0);
 
 	/* Set up the VBO for our vertex data */
 	glEnableVertexAttribArray(attribute_coord);
@@ -207,31 +210,31 @@ void render_text(const char *text, atlas * a, float x, float y, float sx, float 
 	/* Loop through all characters */
 	for (p = (const uint8_t *)text; *p; p++) {
 		/* Calculate the vertex and texture coordinates */
-		float x2 = x + a->c[*p].bl * sx;
-		float y2 = -y - a->c[*p].bt * sy;
-		float w = a->c[*p].bw * sx;
-		float h = a->c[*p].bh * sy;
+		float x2 = x + a->glyphs[*p].bitmap_left * sx;
+		float y2 = -y - a->glyphs[*p].bitmap_top * sy;
+		float w = a->glyphs[*p].bitmap_w * sx;
+		float h = a->glyphs[*p].bitmap_h * sy;
 
 		/* Advance the cursor to the start of the next character */
-		x += a->c[*p].ax * sx;
-		y += a->c[*p].ay * sy;
+		x += a->glyphs[*p].advance_x * sx;
+		y += a->glyphs[*p].advance_y * sy;
 
 		/* Skip glyphs that have no pixels */
 		if (!w || !h)
 			continue;
 
 		coords[c++] = (point) {
-			x2, -y2, a->c[*p].tx, a->c[*p].ty};
+			x2, -y2, a->glyphs[*p].texture_offset_x, a->glyphs[*p].texture_offset_y};
 		coords[c++] = (point) {
-			x2 + w, -y2, a->c[*p].tx + a->c[*p].bw / a->w, a->c[*p].ty};
+			x2 + w, -y2, a->glyphs[*p].texture_offset_x + a->glyphs[*p].bitmap_w / a->texture_width, a->glyphs[*p].texture_offset_y};
 		coords[c++] = (point) {
-			x2, -y2 - h, a->c[*p].tx, a->c[*p].ty + a->c[*p].bh / a->h};
+			x2, -y2 - h, a->glyphs[*p].texture_offset_x, a->glyphs[*p].texture_offset_y + a->glyphs[*p].bitmap_h / a->texture_height};
 		coords[c++] = (point) {
-			x2 + w, -y2, a->c[*p].tx + a->c[*p].bw / a->w, a->c[*p].ty};
+			x2 + w, -y2, a->glyphs[*p].texture_offset_x + a->glyphs[*p].bitmap_w / a->texture_width, a->glyphs[*p].texture_offset_y};
 		coords[c++] = (point) {
-			x2, -y2 - h, a->c[*p].tx, a->c[*p].ty + a->c[*p].bh / a->h};
+			x2, -y2 - h, a->glyphs[*p].texture_offset_x, a->glyphs[*p].texture_offset_y + a->glyphs[*p].bitmap_h / a->texture_height};
 		coords[c++] = (point) {
-			x2 + w, -y2 - h, a->c[*p].tx + a->c[*p].bw / a->w, a->c[*p].ty + a->c[*p].bh / a->h};
+			x2 + w, -y2 - h, a->glyphs[*p].texture_offset_x + a->glyphs[*p].bitmap_w / a->texture_width, a->glyphs[*p].texture_offset_y + a->glyphs[*p].bitmap_h / a->texture_height};
 	}
 
 	/* Draw all the character on the screen in one go */
