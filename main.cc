@@ -1,4 +1,5 @@
 #include "window.hh"
+#include "utils.hh"
 #include <fstream>
 
 #include <cstdio>
@@ -35,8 +36,6 @@ FT_Face face;
 
 // Maximum texture width
 #define MAXWIDTH 1024
-
-const char *fontfilename = "dr.ttf";
 
 /**
  * The atlas struct holds a texture that contains the visible US-ASCII characters
@@ -163,17 +162,11 @@ atlas *a24;
 atlas *a12;
 
 int init_resources() {
-	/* Initialize the FreeType2 library */
-	if (FT_Init_FreeType(&ft)) {
-		fprintf(stderr, "Could not init freetype library\n");
-		return 0;
-	}
+	if (FT_Init_FreeType(&ft))
+		die("could not init freetype library");
 
-	/* Load a font */
-	if (FT_New_Face(ft, fontfilename, 0, &face)) {
-		fprintf(stderr, "Could not open font %s\n", fontfilename);
-		return 0;
-	}
+	if (FT_New_Face(ft, "font.ttf", 0, &face))
+		die("could not open font");
 
 	prog = new program("vert.glsl", "frag.glsl");
 
@@ -296,17 +289,30 @@ void free_resources() {
 	glDeleteProgram(prog->id);
 }
 
-int main(int argc, char *argv[]) {
-	window window;
+int main(int argc, char **argv) {
+	try {
+		window window;
 
-	init_resources();
+		init_resources();
 
-	while (!glfwWindowShouldClose(window.glfw_window)) {
-		display();
-		glfwSwapBuffers(window.glfw_window);
+		while (!glfwWindowShouldClose(window.glfw_window)) {
+			display();
+			glfwSwapBuffers(window.glfw_window);
+		}
+
+		free_resources();
+	} catch (std::bad_alloc &e) {
+		fputs("out of memory\n", stderr);
+		return 1;
+	} catch (std::runtime_error &e) {
+		fputs("die: ", stderr);
+		fputs(e.what(), stderr);
+		fputs("\n", stderr);
+		return 1;
+	} catch (std::exception &e) {
+		fputs("uncaught exception: ", stderr);
+		return 1;
 	}
-
-	free_resources();
 	return 0;
 }
 

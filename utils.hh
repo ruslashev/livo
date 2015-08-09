@@ -11,4 +11,3 @@ static void die(std::string msg)
 
 #endif
 
-
