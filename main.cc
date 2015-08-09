@@ -9,7 +9,6 @@
 
 #include <GL/glew.h>
 
-#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -252,10 +251,6 @@ void display() {
 	glClearColor(1, 1, 1, 1);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	/* Enable blending, necessary for our alpha texture */
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
 	GLfloat black[4] = { 0, 0, 0, 1 };
 	GLfloat red[4] = { 1, 0, 0, 1 };
 	GLfloat transparent_green[4] = { 0, 1, 0, 0.5 };
@@ -285,22 +280,20 @@ void display() {
 	render_text("The Transparent Green Fox Jumps Over The Lazy Dog", a48, -1 + 18 * sx, 1 - 440 * sy, sx, sy);
 }
 
-void free_resources() {
-	glDeleteProgram(prog->id);
-}
-
 int main(int argc, char **argv) {
 	try {
 		window window;
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 		init_resources();
 
 		while (!glfwWindowShouldClose(window.glfw_window)) {
 			display();
 			glfwSwapBuffers(window.glfw_window);
+			glfwPollEvents();
 		}
-
-		free_resources();
 	} catch (std::bad_alloc &e) {
 		fputs("out of memory\n", stderr);
 		return 1;
