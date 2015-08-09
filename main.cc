@@ -46,6 +46,8 @@ FT_Face face;
  */
 
 struct glyph_info {
+	bool rendered;
+
 	float advance_x;
 	float advance_y;
 
@@ -67,18 +69,13 @@ struct atlas {
 
 	std::vector<glyph_info> glyphs;
 
-	atlas(FT_Face face, int height) {
-		FT_Set_Pixel_Sizes(face, 0, height);
+	void calculate_atlas_size() {
 		FT_GlyphSlot g = face->glyph;
 
+		texture_width = texture_height = 0;
 		unsigned int roww = 0;
 		unsigned int rowh = 0;
-		texture_width = 0;
-		texture_height = 0;
 
-		glyphs.resize(128, { 0, 0, 0, 0, 0, 0, 0, 0 });
-
-		/* Find minimum size for a texture holding all visible ASCII characters */
 		for (int i = 32; i < 128; i++) {
 			if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
 				fprintf(stderr, "Loading character %c failed!\n", i);
@@ -96,6 +93,16 @@ struct atlas {
 
 		texture_width = std::max(texture_width, roww);
 		texture_height += rowh;
+	}
+
+
+	atlas(FT_Face face, int height) {
+		FT_Set_Pixel_Sizes(face, 0, height);
+		FT_GlyphSlot g = face->glyph;
+
+		glyphs.resize(128, { 0, 0, 0, 0, 0, 0, 0, 0 });
+
+		calculate_atlas_size();
 
 		/* Create a texture that will be used to hold all ASCII glyphs */
 		glActiveTexture(GL_TEXTURE0);
@@ -120,7 +127,7 @@ struct atlas {
 		int ox = 0;
 		int oy = 0;
 
-		rowh = 0;
+		unsigned int rowh = 0;
 
 		for (int i = 32; i < 128; i++) {
 			if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
@@ -210,6 +217,8 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 	/* Loop through all characters */
 	for (p = (const uint8_t *)text; *p; p++) {
 		/* Calculate the vertex and texture coordinates */
+		// if (!a->glyphs[*p].rendered)
+		// 	a->render_char(*p);
 		float x2 = x + a->glyphs[*p].bitmap_left * sx;
 		float y2 = -y - a->glyphs[*p].bitmap_top * sy;
 		float w = a->glyphs[*p].bitmap_w * sx;

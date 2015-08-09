@@ -43,10 +43,11 @@ GLuint create_shader(GLenum type, const char *path) {
 		die(msg);
 	}
 	fseek(file, 0, SEEK_END);
-	const int length = ftell(file);
+	const size_t length = ftell(file);
 	rewind(file);
-	char *source = (char*)malloc(length + 1 * sizeof(char));
+	char *source = (char*)malloc((length + 1) * sizeof(char));
 	fread(source, 1, length, file);
+	source[length] = '\0';
 	fclose(file);
 
 	GLuint shader = glCreateShader(type);
