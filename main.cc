@@ -64,19 +64,48 @@ struct glyph_info {
 struct atlas {
 	GLuint texture;
 
+	unsigned int font_height;
+
 	unsigned int texture_width;
 	unsigned int texture_height;
 
+	int texture_last_x;
+	int texture_last_y;
+	unsigned int rowh;
+
 	std::vector<glyph_info> glyphs;
 
-	void calculate_atlas_size() {
+	atlas(FT_Face face, int height) {
+		texture = -1;
+		font_height = height;
+		texture_last_x = 0;
+		texture_last_y = 0;
+		rowh = 0;
+		glyphs.resize(128, { 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+
+		create_texture();
+
+		// required 1 byte alignment
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		for (int i = 0; i < 32; i++)
+			render_char(i); // precache ASCII set
+	}
+
+	void create_texture() {
+		FT_Set_Pixel_Sizes(face, 0, font_height);
 		FT_GlyphSlot g = face->glyph;
 
 		texture_width = texture_height = 0;
 		unsigned int roww = 0;
 		unsigned int rowh = 0;
 
-		for (int i = 32; i < 128; i++) {
+		for (int i = 0; i < glyphs.size(); i++) {
 			if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
 				fprintf(stderr, "Loading character %c failed!\n", i);
 				continue;
@@ -93,72 +122,52 @@ struct atlas {
 
 		texture_width = std::max(texture_width, roww);
 		texture_height += rowh;
-	}
 
-
-	atlas(FT_Face face, int height) {
-		FT_Set_Pixel_Sizes(face, 0, height);
-		FT_GlyphSlot g = face->glyph;
-
-		glyphs.resize(128, { 0, 0, 0, 0, 0, 0, 0, 0 });
-
-		calculate_atlas_size();
-
-		/* Create a texture that will be used to hold all ASCII glyphs */
+		if (texture != -1)
+			glDeleteTextures(1, &texture);
 		glActiveTexture(GL_TEXTURE0);
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glUniform1i(uniform_texture, 0);
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, texture_width, texture_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, texture_width, texture_height,
+				0, GL_ALPHA, GL_UNSIGNED_BYTE, 0);
+	}
 
-		/* We require 1 byte alignment when uploading texture data */
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	void render_char(unsigned int i) {
+		FT_Set_Pixel_Sizes(face, 0, font_height);
+		FT_GlyphSlot g = face->glyph;
 
-		/* Clamping to edges is important to prevent artifacts when scaling */
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		// todo someday it's gonna crash
 
-		/* Linear filtering usually looks best for text */
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		/* Paste all glyph bitmaps into the texture, remembering the offset */
-		int ox = 0;
-		int oy = 0;
-
-		unsigned int rowh = 0;
-
-		for (int i = 32; i < 128; i++) {
-			if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-				fprintf(stderr, "Loading character %c failed!\n", i);
-				continue;
-			}
-
-			if (ox + g->bitmap.width + 1 >= MAXWIDTH) {
-				oy += rowh;
-				rowh = 0;
-				ox = 0;
-			}
-
-			glTexSubImage2D(GL_TEXTURE_2D, 0, ox, oy, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
-			glyphs[i].advance_x = g->advance.x >> 6;
-			glyphs[i].advance_y = g->advance.y >> 6;
-
-			glyphs[i].bitmap_w = g->bitmap.width;
-			glyphs[i].bitmap_h = g->bitmap.rows;
-
-			glyphs[i].bitmap_left = g->bitmap_left;
-			glyphs[i].bitmap_top = g->bitmap_top;
-
-			glyphs[i].texture_offset_x = ox / (float)texture_width;
-			glyphs[i].texture_offset_y = oy / (float)texture_height;
-
-			rowh = std::max(rowh, g->bitmap.rows);
-			ox += g->bitmap.width + 1;
+		if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
+			fprintf(stderr, "Loading character '%c' failed!\n", i);
+			return;
 		}
 
-		fprintf(stderr, "Generated a %d x %d (%d kb) texture atlas\n", texture_width, texture_height, texture_width * texture_height / 1024);
+		if (texture_last_x + g->bitmap.width + 1 >= MAXWIDTH) {
+			texture_last_y += rowh;
+			rowh = 0;
+			texture_last_x = 0;
+		}
+
+		glyphs[i].rendered = true;
+
+		glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y, g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap.buffer);
+		glyphs[i].advance_x = g->advance.x >> 6;
+		glyphs[i].advance_y = g->advance.y >> 6;
+
+		glyphs[i].bitmap_w = g->bitmap.width;
+		glyphs[i].bitmap_h = g->bitmap.rows;
+
+		glyphs[i].bitmap_left = g->bitmap_left;
+		glyphs[i].bitmap_top = g->bitmap_top;
+
+		glyphs[i].texture_offset_x = texture_last_x / (float)texture_width;
+		glyphs[i].texture_offset_y = texture_last_y / (float)texture_height;
+
+		rowh = std::max(rowh, g->bitmap.rows);
+		texture_last_x += g->bitmap.width + 1;
 	}
 
 	~atlas() {
@@ -217,8 +226,8 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 	/* Loop through all characters */
 	for (p = (const uint8_t *)text; *p; p++) {
 		/* Calculate the vertex and texture coordinates */
-		// if (!a->glyphs[*p].rendered)
-		// 	a->render_char(*p);
+		if (!a->glyphs[*p].rendered)
+			a->render_char(*p);
 		float x2 = x + a->glyphs[*p].bitmap_left * sx;
 		float y2 = -y - a->glyphs[*p].bitmap_top * sy;
 		float w = a->glyphs[*p].bitmap_w * sx;

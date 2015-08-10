@@ -93,7 +93,6 @@ program::program(const char *vert_path, const char *frag_path) {
 		free(info);
 		die(std::string(buf));
 	}
-	else {puts("ya");}
 	glDetachShader(id, shader1);
 	glDetachShader(id, shader2);
 	glDeleteShader(shader1);
