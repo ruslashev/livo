@@ -74,6 +74,7 @@ struct atlas {
 
 	atlas(FT_Face face, int height) {
 		font_height = height;
+		puts("INIT glyphs 1");
 		glyphs.resize(1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
 		add_new_texture();
@@ -81,15 +82,11 @@ struct atlas {
 		// required 1 byte alignment
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-		render_char('\0');
+		query('\0');
 	}
 
 	const glyph_info* query(unsigned int codepoint) {
+		printf("query glyph %c\n", codepoint);
 		if (codepoint >= glyphs.size()) {
 			glyphs.resize(codepoint+1);
 			// for (size_t i = 0; i < glyphs.size(); i++)
@@ -101,6 +98,7 @@ struct atlas {
 	}
 
 	void add_new_texture() {
+		puts("add_new_texture()");
 		glActiveTexture(GL_TEXTURE0);
 		GLuint texture;
 		glGenTextures(1, &texture);
@@ -110,51 +108,22 @@ struct atlas {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, MAXWIDTH, MAXWIDTH, 0,
 				GL_ALPHA, GL_UNSIGNED_BYTE, 0);
 
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+		puts("textures.push_back(texture)");
 		textures.push_back(texture);
 
+		puts("coords reset");
 		texture_last_x = 0;
 		texture_last_y = 0;
 		row_height = 0;
 	}
 
-	/*
-	void create_texture() {
-		FT_Set_Pixel_Sizes(face, 0, font_height);
-		FT_GlyphSlot g = face->glyph;
-
-		texture_width = texture_height = 0;
-		unsigned int roww = 0;
-		unsigned int rowh = 0;
-
-		for (int i = 0; i < glyphs.size(); i++) {
-			unsigned int bitmap_w, bitmap_h;
-			if (!glyphs[i].rendered) {
-				if (FT_Load_Char(face, i, FT_LOAD_RENDER)) {
-					fprintf(stderr, "Loading character %c failed!\n", i);
-					continue;
-				}
-				bitmap_w = g->bitmap.width;
-				bitmap_h = g->bitmap.rows;
-			} else {
-				bitmap_w = glyphs[i].bitmap_w;
-				bitmap_h = glyphs[i].bitmap_h;
-			}
-			if (roww + bitmap_w + 1 >= MAXWIDTH) {
-				texture_width = std::max(texture_width, roww);
-				texture_height += rowh;
-				roww = 0;
-				rowh = 0;
-			}
-			roww += bitmap_w + 1;
-			rowh = std::max(rowh, bitmap_h);
-		}
-
-		texture_width = std::max(texture_width, roww);
-		texture_height += rowh;
-	}
-	*/
-
 	void render_char(unsigned int i) {
+		printf("render char %c\n", i);
 		FT_Set_Pixel_Sizes(face, 0, font_height);
 		FT_GlyphSlot g = face->glyph;
 
@@ -164,7 +133,9 @@ struct atlas {
 		}
 
 		if (texture_last_x + g->bitmap.width + 1 >= MAXWIDTH) {
+			puts("x overflow");
 			if (texture_last_y + row_height >= MAXWIDTH) {
+				puts("y overflow");
 				puts("creating new texture");
 				add_new_texture();
 			} else {
@@ -174,6 +145,7 @@ struct atlas {
 			}
 		}
 
+		printf("texture %d access\n");
 		glyphs[i].texture = textures.back();
 
 		glyphs[i].rendered = true;
