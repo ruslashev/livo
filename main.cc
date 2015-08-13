@@ -21,19 +21,12 @@ GLint attribute_coord;
 GLint uniform_texture;
 GLint uniform_color;
 
-struct point {
-	GLfloat x;
-	GLfloat y;
-	GLfloat s;
-	GLfloat t;
-};
-
 GLuint vbo;
 
 FT_Library ft;
 FT_Face face;
 
-#define MAXWIDTH 1024
+#define MAXWIDTH 128
 
 /**
  * The atlas struct holds a texture that contains the visible US-ASCII characters
@@ -201,18 +194,14 @@ void init_resources() {
 void render_text(const char *text, atlas *a, float x, float y, float sx, float sy) {
 	const uint8_t *p;
 
-	/* Set up the VBO for our vertex data */
-	glEnableVertexAttribArray(attribute_coord);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
-
-	point coords[6 * strlen(text)];
-	int c = 0;
 
 	/* Loop through all characters */
 	for (p = (const uint8_t *)text; *p; p++) {
 		const glyph_info *gi = a->query(*p);
 
+		glEnableVertexAttribArray(attribute_coord);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
 		glBindTexture(GL_TEXTURE_2D, gi->texture);
 
 		/* Calculate the vertex and texture coordinates */
@@ -229,25 +218,31 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 		if (!w || !h)
 			continue;
 
-		coords[c++] = (point) {
+		struct {
+			GLfloat x;
+			GLfloat y;
+			GLfloat s;
+			GLfloat t;
+		} coords[6];
+
+		coords[0] = {
 			x2, -y2, gi->texture_offset_x, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[1] = {
 			x2 + w, -y2, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[2] = {
 			x2, -y2 - h, gi->texture_offset_x, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
-		coords[c++] = (point) {
+		coords[3] = {
 			x2 + w, -y2, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[4] = {
 			x2, -y2 - h, gi->texture_offset_x, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
-		coords[c++] = (point) {
+		coords[5] = {
 			x2 + w, -y2 - h, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		glDisableVertexAttribArray(attribute_coord);
 	}
-
-	/* Draw all the character on the screen in one go */
-	glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, c);
-
-	glDisableVertexAttribArray(attribute_coord);
 }
 
 void display() {
