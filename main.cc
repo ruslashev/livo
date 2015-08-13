@@ -33,7 +33,7 @@ GLuint vbo;
 FT_Library ft;
 FT_Face face;
 
-#define MAXWIDTH 128
+#define MAXWIDTH 1024
 
 /**
  * The atlas struct holds a texture that contains the visible US-ASCII characters
@@ -74,7 +74,6 @@ struct atlas {
 
 	atlas(FT_Face face, int height) {
 		font_height = height;
-		puts("INIT glyphs 1");
 		glyphs.resize(1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
 		add_new_texture();
@@ -86,9 +85,8 @@ struct atlas {
 	}
 
 	const glyph_info* query(unsigned int codepoint) {
-		printf("query glyph %c\n", codepoint);
 		if (codepoint >= glyphs.size()) {
-			glyphs.resize(codepoint+1);
+			glyphs.resize(codepoint+1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 			// for (size_t i = 0; i < glyphs.size(); i++)
 			// 	glyphs
 		}
@@ -98,7 +96,6 @@ struct atlas {
 	}
 
 	void add_new_texture() {
-		puts("add_new_texture()");
 		glActiveTexture(GL_TEXTURE0);
 		GLuint texture;
 		glGenTextures(1, &texture);
@@ -113,17 +110,14 @@ struct atlas {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		puts("textures.push_back(texture)");
 		textures.push_back(texture);
 
-		puts("coords reset");
 		texture_last_x = 0;
 		texture_last_y = 0;
 		row_height = 0;
 	}
 
 	void render_char(unsigned int i) {
-		printf("render char %c\n", i);
 		FT_Set_Pixel_Sizes(face, 0, font_height);
 		FT_GlyphSlot g = face->glyph;
 
@@ -133,11 +127,9 @@ struct atlas {
 		}
 
 		if (texture_last_x + g->bitmap.width + 1 >= MAXWIDTH) {
-			puts("x overflow");
 			if (texture_last_y + row_height >= MAXWIDTH) {
-				puts("y overflow");
-				puts("creating new texture");
 				add_new_texture();
+				row_height = 0;
 			} else {
 				texture_last_y += row_height;
 				row_height = 0;
@@ -145,7 +137,6 @@ struct atlas {
 			}
 		}
 
-		printf("texture %d access\n");
 		glyphs[i].texture = textures.back();
 
 		glyphs[i].rendered = true;
@@ -198,8 +189,8 @@ void init_resources() {
 	glGenBuffers(1, &vbo);
 
 	a48 = new atlas(face, 48);
-	a24 = new atlas(face, 24);
-	a12 = new atlas(face, 12);
+	// a24 = new atlas(face, 24);
+	// a12 = new atlas(face, 12);
 }
 
 /**
@@ -223,7 +214,6 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 		const glyph_info *gi = a->query(*p);
 
 		glBindTexture(GL_TEXTURE_2D, gi->texture);
-		glUniform1i(uniform_texture, 0);
 
 		/* Calculate the vertex and texture coordinates */
 		float x2 = x + gi->bitmap_left * sx;
@@ -283,9 +273,9 @@ void display() {
 
 	/* Scaling the texture versus changing the font size */
 	render_text("The Small Texture Scaled Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 175 * sy, sx * 0.5, sy * 0.5);
-	render_text("The Small Font Sized Fox Jumps Over The Lazy Dog", a24, -1 + 8 * sx, 1 - 200 * sy, sx, sy);
+	// render_text("The Small Font Sized Fox Jumps Over The Lazy Dog", a24, -1 + 8 * sx, 1 - 200 * sy, sx, sy);
 	render_text("The Tiny Texture Scaled Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 235 * sy, sx * 0.25, sy * 0.25);
-	render_text("The Tiny Font Sized Fox Jumps Over The Lazy Dog", a12, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
+	// render_text("The Tiny Font Sized Fox Jumps Over The Lazy Dog", a12, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
 
 	/* Colors and transparency */
 	render_text("The Solid Black Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 430 * sy, sx, sy);
