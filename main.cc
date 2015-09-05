@@ -1,5 +1,6 @@
 #include "window.hh"
 #include "utils.hh"
+#include "matrix.hh"
 #include <fstream>
 
 #include <cstdio>
@@ -268,6 +269,14 @@ void display() {
 int main(int argc, char **argv) {
 	try {
 		window window;
+
+		matrix mat;
+		mat.set_size(10, 5);
+		for (unsigned int y = 0; y < mat.size_cells_y; y++) {
+			for (unsigned int x = 0; x < mat.size_cells_x; x++)
+				printf("%c ", mat.data[y][x]);
+			printf("\n");
+		}
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
