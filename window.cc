@@ -8,6 +8,8 @@ window::window()
 	if (!glfwInit())
 		die("Failed to initialze GLFW");
 
+	glfwWindowHint(GLFW_RESIZABLE, 0);
+
 	glfw_window = glfwCreateWindow(800, 600, "livo", NULL, NULL);
 	if (!glfw_window)
 		die("Failed to open window");

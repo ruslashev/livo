@@ -35,15 +35,6 @@ FT_Face face;
 
 #define MAXWIDTH 128
 
-/**
- * The atlas struct holds a texture that contains the visible US-ASCII characters
- * of a certain font rendered with a certain character height.
- * It also contains an array that contains all the information necessary to
- * generate the appropriate vertex and texture coordinates for each character.
- *
- * After the constructor is run, you don't need to use any FreeType functions anymore.
- */
-
 struct glyph_info {
 	GLuint texture;
 	bool rendered;
@@ -79,14 +70,13 @@ struct atlas {
 
 		add_new_texture();
 
-		// required 1 byte alignment
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 		query('\0');
 	}
 
 	const glyph_info* query(unsigned int codepoint) {
-		printf("query glyph %c\n", codepoint);
+		// printf("query glyph %c\n", codepoint);
 		if (codepoint >= glyphs.size()) {
 			glyphs.resize(codepoint+1);
 			// for (size_t i = 0; i < glyphs.size(); i++)
@@ -99,11 +89,9 @@ struct atlas {
 
 	void add_new_texture() {
 		puts("add_new_texture()");
-		glActiveTexture(GL_TEXTURE0);
 		GLuint texture;
 		glGenTextures(1, &texture);
 		glBindTexture(GL_TEXTURE_2D, texture);
-		glUniform1i(uniform_texture, 0);
 
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, MAXWIDTH, MAXWIDTH, 0,
 				GL_ALPHA, GL_UNSIGNED_BYTE, 0);
@@ -145,11 +133,12 @@ struct atlas {
 			}
 		}
 
-		printf("texture %d access\n");
+		printf("texture %d access\n", textures.back());
 		glyphs[i].texture = textures.back();
 
 		glyphs[i].rendered = true;
 
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, textures.back());
 
 		glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y,
@@ -195,6 +184,8 @@ void init_resources() {
 	uniform_texture = glGetUniformLocation(prog->id, "texture");
 	uniform_color = glGetUniformLocation(prog->id, "color");
 
+	glUniform1i(uniform_texture, 0);
+
 	glGenBuffers(1, &vbo);
 
 	a48 = new atlas(face, 48);
@@ -202,11 +193,6 @@ void init_resources() {
 	a12 = new atlas(face, 12);
 }
 
-/**
- * Render text using the currently loaded font and currently set font size.
- * Rendering starts at coordinates (x, y), z is always 0.
- * The pixel coordinates that the FreeType2 library uses are scaled by (sx, sy).
- */
 void render_text(const char *text, atlas *a, float x, float y, float sx, float sy) {
 	const uint8_t *p;
 
@@ -223,7 +209,6 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 		const glyph_info *gi = a->query(*p);
 
 		glBindTexture(GL_TEXTURE_2D, gi->texture);
-		glUniform1i(uniform_texture, 0);
 
 		/* Calculate the vertex and texture coordinates */
 		float x2 = x + gi->bitmap_left * sx;
@@ -271,32 +256,13 @@ void display() {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	GLfloat black[4] = { 0, 0, 0, 1 };
-	GLfloat red[4] = { 1, 0, 0, 1 };
-	GLfloat transparent_green[4] = { 0, 1, 0, 0.5 };
-
-	/* Set color to black */
 	glUniform4fv(uniform_color, 1, black);
 
-	/* Effects of alignment */
-	render_text("The Quick Brown Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 50 * sy, sx, sy);
-	render_text("The Misaligned Fox Jumps Over The Lazy Dog", a48, -1 + 8.5 * sx, 1 - 100.5 * sy, sx, sy);
+	render_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ", a48, -1 + 8 * sx, 1 - 50 * sy, sx, sy);
+	render_text("abcdefghijklmnopqrstuvwxyz", a48, -1 + 8 * sx, 1 - 150 * sy, sx, sy);
 
-	/* Scaling the texture versus changing the font size */
-	render_text("The Small Texture Scaled Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 175 * sy, sx * 0.5, sy * 0.5);
-	render_text("The Small Font Sized Fox Jumps Over The Lazy Dog", a24, -1 + 8 * sx, 1 - 200 * sy, sx, sy);
-	render_text("The Tiny Texture Scaled Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 235 * sy, sx * 0.25, sy * 0.25);
-	render_text("The Tiny Font Sized Fox Jumps Over The Lazy Dog", a12, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
-
-	/* Colors and transparency */
-	render_text("The Solid Black Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 430 * sy, sx, sy);
-
-	glUniform4fv(uniform_color, 1, red);
-	render_text("The Solid Red Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 330 * sy, sx, sy);
-	render_text("The Solid Red Fox Jumps Over The Lazy Dog", a48, -1 + 28 * sx, 1 - 450 * sy, sx, sy);
-
-	glUniform4fv(uniform_color, 1, transparent_green);
-	render_text("The Transparent Green Fox Jumps Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 380 * sy, sx, sy);
-	render_text("The Transparent Green Fox Jumps Over The Lazy Dog", a48, -1 + 18 * sx, 1 - 440 * sy, sx, sy);
+	render_text("The Quick Brown Fox Jumps", a48, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
+	render_text("Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 290 * sy, sx, sy);
 }
 
 int main(int argc, char **argv) {
