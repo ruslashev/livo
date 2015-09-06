@@ -22,13 +22,6 @@ GLint attribute_coord;
 GLint uniform_texture;
 GLint uniform_color;
 
-struct point {
-	GLfloat x;
-	GLfloat y;
-	GLfloat s;
-	GLfloat t;
-};
-
 GLuint vbo;
 
 FT_Library ft;
@@ -66,7 +59,6 @@ struct atlas {
 
 	atlas(FT_Face face, int height) {
 		font_height = height;
-		puts("INIT glyphs 1");
 		glyphs.resize(1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
 		add_new_texture();
@@ -79,7 +71,7 @@ struct atlas {
 	const glyph_info* query(unsigned int codepoint) {
 		// printf("query glyph %c\n", codepoint);
 		if (codepoint >= glyphs.size()) {
-			glyphs.resize(codepoint+1);
+			glyphs.resize(codepoint+1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 			// for (size_t i = 0; i < glyphs.size(); i++)
 			// 	glyphs
 		}
@@ -102,17 +94,14 @@ struct atlas {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-		puts("textures.push_back(texture)");
 		textures.push_back(texture);
 
-		puts("coords reset");
 		texture_last_x = 0;
 		texture_last_y = 0;
 		row_height = 0;
 	}
 
 	void render_char(unsigned int i) {
-		printf("render char %c\n", i);
 		FT_Set_Pixel_Sizes(face, 0, font_height);
 		FT_GlyphSlot g = face->glyph;
 
@@ -122,11 +111,9 @@ struct atlas {
 		}
 
 		if (texture_last_x + g->bitmap.width + 1 >= MAXWIDTH) {
-			puts("x overflow");
 			if (texture_last_y + row_height >= MAXWIDTH) {
-				puts("y overflow");
-				puts("creating new texture");
 				add_new_texture();
+				row_height = 0;
 			} else {
 				texture_last_y += row_height;
 				row_height = 0;
@@ -169,8 +156,6 @@ struct atlas {
 };
 
 atlas *a48;
-atlas *a24;
-atlas *a12;
 
 void init_resources() {
 	if (FT_Init_FreeType(&ft))
@@ -190,25 +175,19 @@ void init_resources() {
 	glGenBuffers(1, &vbo);
 
 	a48 = new atlas(face, 48);
-	a24 = new atlas(face, 24);
-	a12 = new atlas(face, 12);
 }
 
 void render_text(const char *text, atlas *a, float x, float y, float sx, float sy) {
 	const uint8_t *p;
 
-	/* Set up the VBO for our vertex data */
-	glEnableVertexAttribArray(attribute_coord);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
-
-	point coords[6 * strlen(text)];
-	int c = 0;
 
 	/* Loop through all characters */
 	for (p = (const uint8_t *)text; *p; p++) {
 		const glyph_info *gi = a->query(*p);
 
+		glEnableVertexAttribArray(attribute_coord);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
 		glBindTexture(GL_TEXTURE_2D, gi->texture);
 
 		/* Calculate the vertex and texture coordinates */
@@ -225,25 +204,31 @@ void render_text(const char *text, atlas *a, float x, float y, float sx, float s
 		if (!w || !h)
 			continue;
 
-		coords[c++] = (point) {
+		struct {
+			GLfloat x;
+			GLfloat y;
+			GLfloat s;
+			GLfloat t;
+		} coords[6];
+
+		coords[0] = {
 			x2, -y2, gi->texture_offset_x, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[1] = {
 			x2 + w, -y2, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[2] = {
 			x2, -y2 - h, gi->texture_offset_x, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
-		coords[c++] = (point) {
+		coords[3] = {
 			x2 + w, -y2, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y};
-		coords[c++] = (point) {
+		coords[4] = {
 			x2, -y2 - h, gi->texture_offset_x, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
-		coords[c++] = (point) {
+		coords[5] = {
 			x2 + w, -y2 - h, gi->texture_offset_x + gi->bitmap_w / (float)MAXWIDTH, gi->texture_offset_y + gi->bitmap_h / (float)MAXWIDTH};
+
+		glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+
+		glDisableVertexAttribArray(attribute_coord);
 	}
-
-	/* Draw all the character on the screen in one go */
-	glBufferData(GL_ARRAY_BUFFER, sizeof coords, coords, GL_DYNAMIC_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, c);
-
-	glDisableVertexAttribArray(attribute_coord);
 }
 
 void display() {
