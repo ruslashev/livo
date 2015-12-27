@@ -25,3 +25,5 @@ struct program {
 
 #endif
 
+// vim: et:sw=2
+

@@ -38,12 +38,8 @@ buffer::~buffer() {
 
 GLuint create_shader(GLenum type, const char *path) {
 	FILE *file = fopen(path, "rb");
-	if (!file) {
-		std::string msg("no such file: \"");
-		msg += std::string(path);
-		msg += "\"";
-		die(msg);
-	}
+	if (!file)
+		die("no such file: \"%s\"", path);
 	fseek(file, 0, SEEK_END);
 	const size_t length = ftell(file);
 	rewind(file);
@@ -68,7 +64,7 @@ GLuint create_shader(GLenum type, const char *path) {
 				info);
 		free(info);
 		free(source);
-		die(std::string(buf));
+		die(buf);
 	}
 	free(source);
 
@@ -93,7 +89,7 @@ program::program(const char *vert_path, const char *frag_path) {
 		snprintf(buf, 4096, "program linking failed:\n%s",
 				info);
 		free(info);
-		die(std::string(buf));
+		die(buf);
 	}
 	glDetachShader(id, shader1);
 	glDetachShader(id, shader2);
@@ -105,4 +101,6 @@ program::~program()
 {
 	glDeleteProgram(id);
 }
+
+// vim: et:sw=2
 
