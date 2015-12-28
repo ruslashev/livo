@@ -1,30 +1,13 @@
 #ifndef GFX_HH
 #define GFX_HH
 
+#include "matrix.hh"
+
 #include <GL/glew.h>
 #include <freetype2/ft2build.h>
 #include FT_FREETYPE_H
 #include <GLFW/glfw3.h>
-#include <string>
 #include <vector>
-
-struct window {
-  GLFWwindow *glfw_window;
-  window();
-  ~window();
-};
-
-struct buffer {
-  GLuint id;
-  buffer(GLenum target, GLsizei size, const void *data);
-  ~buffer();
-};
-
-struct program {
-  GLuint id;
-  program(const char *vert_path, const char *frag_path);
-  ~program();
-};
 
 struct glyph {
   GLuint texture;
@@ -172,7 +155,7 @@ public:
   gfx();
   ~gfx();
   void display();
-  // void draw(const matrix &mat);
+  void draw(const matrix &mat);
 };
 
 #endif
