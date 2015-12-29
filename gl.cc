@@ -105,3 +105,13 @@ program::~program()
   glDeleteProgram(id);
 }
 
+GLint program::bind_attribute(const char *name)
+{
+  GLint location = glGetAttribLocation(id, name);
+  if (location == -1)
+    die("failed to bind attribute \"%s\"", name);
+  return location;
+}
+
+// vim: et:sw=2
+

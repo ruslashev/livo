@@ -7,7 +7,7 @@
 struct cell {
   uint32_t fg, bg;
   uint32_t character;
-  cell() : character('A') { puts("init"); };
+  cell() : character('A') {};
 };
 
 class matrix {

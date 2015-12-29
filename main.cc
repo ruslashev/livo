@@ -38,7 +38,7 @@ void actual_main()
   mat.set_size(10, 5);
   for (ull y = 0; y < mat.sy; y++) {
     for (ull x = 0; x < mat.sx; x++)
-      printf("%c ", mat.data[y][x]);
+      printf("%c ", mat.data[y][x].character);
     printf("\n");
   }
 

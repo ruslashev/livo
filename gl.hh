@@ -20,6 +20,7 @@ struct program {
   GLuint id;
   program(const char *vert_path, const char *frag_path);
   ~program();
+  GLint bind_attribute(const char *name);
 };
 
 #endif
