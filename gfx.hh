@@ -26,7 +26,7 @@ struct glyph {
   float texture_offset_y;
 };
 
-#define MAXWIDTH 1024
+#define MAXWIDTH 128
 
 struct atlas {
   FT_Face faceptr;
@@ -38,7 +38,7 @@ struct atlas {
   int texture_last_y;
   unsigned int row_height;
 
-  std::vector<glyph> glyphs;
+  std::vector<glyph> glyphs; // todo: replace with map<codepoint,glyph>
 
   atlas(FT_Face face, int height);
   ~atlas();
@@ -56,7 +56,6 @@ class gfx {
   GLuint vbo;
   FT_Library ft;
   FT_Face face;
-  // std::map<GLuint,std::vector<std::pair<ull,ull>>> texture_to_cells;
   void render_text(const char *text, atlas *a, float x, float y,
       float sx, float sy);
 public:

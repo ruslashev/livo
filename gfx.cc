@@ -9,8 +9,6 @@ atlas::atlas(FT_Face face, int height) {
   add_new_texture();
 
   glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-  query('\0');
 }
 
 atlas::~atlas() {
@@ -23,6 +21,7 @@ void atlas::add_new_texture() {
 
   GLuint texture;
   glGenTextures(1, &texture);
+  printf("generated texture %d\n", texture);
   glActiveTexture(GL_TEXTURE0 + texture);
   glBindTexture(GL_TEXTURE_2D, texture);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, MAXWIDTH, MAXWIDTH, 0,
@@ -41,6 +40,8 @@ void atlas::add_new_texture() {
 }
 
 const glyph* atlas::query(unsigned int codepoint) {
+  if (codepoint >= glyphs.size())
+    glyphs.resize(codepoint+1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
   if (!glyphs[codepoint].rendered)
     render_char(codepoint);
   return &glyphs[codepoint];
@@ -63,13 +64,14 @@ void atlas::render_char(unsigned int i) {
     }
   }
 
-  // printf("texture %d access\n", textures.back());
+  printf("rendering character '%c' to texture %d\n", i, textures.back());
   glyphs[i].texture = textures.back();
 
   glyphs[i].rendered = true;
 
   glActiveTexture(GL_TEXTURE0 + textures.back());
   glBindTexture(GL_TEXTURE_2D, textures.back());
+
   glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y,
       g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE,
       g->bitmap.buffer);
@@ -121,8 +123,8 @@ gfx::~gfx()
 }
 
 void gfx::display() {
-  float sx = 2.0 / 800.0;
-  float sy = 2.0 / 600.0;
+  float sx = 2.0 / 1008.0;
+  float sy = 2.0 / 567.0;
 
   glUseProgram(prog->id);
 
@@ -135,8 +137,11 @@ void gfx::display() {
   render_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ", a48, -1 + 8 * sx, 1 - 50 * sy, sx, sy);
   render_text("abcdefghijklmnopqrstuvwxyz", a48, -1 + 8 * sx, 1 - 150 * sy, sx, sy);
 
-  render_text("The Quick Brown Fox Jumps", a48, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
-  render_text("Over The Lazy Dog", a48, -1 + 8 * sx, 1 - 290 * sy, sx, sy);
+  render_text("THE QUICK BROWN FOX JUMPS", a48, -1 + 8 * sx, 1 - 250 * sy, sx, sy);
+  render_text("OVER THE LAZY DOG", a48, -1 + 8 * sx, 1 - 290 * sy, sx, sy);
+
+  render_text("the quick brown fox jumps", a48, -1 + 8 * sx, 1 - 390 * sy, sx, sy);
+  render_text("over the lazy dog", a48, -1 + 8 * sx, 1 - 430 * sy, sx, sy);
 }
 
 void gfx::render_text(const char *text, atlas *a, float x, float y,
