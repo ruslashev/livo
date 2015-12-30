@@ -26,7 +26,7 @@ struct glyph {
   float texture_offset_y;
 };
 
-#define MAXWIDTH 128
+#define MAXWIDTH 1024
 
 struct atlas {
   FT_Face faceptr;

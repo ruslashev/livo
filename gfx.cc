@@ -29,11 +29,13 @@ gfx::~gfx()
 {
   delete prog;
   delete a48;
+  FT_Done_Face(face);
+  FT_Done_FreeType(ft);
 }
 
 void gfx::display() {
-  float sx = 2.0 / 800.0;
-  float sy = 2.0 / 600.0;
+  float sx = 2.0 / 1008.0;
+  float sy = 2.0 / 567.0;
 
   glUseProgram(prog->id);
 
