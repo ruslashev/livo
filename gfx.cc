@@ -116,6 +116,8 @@ gfx::~gfx()
 {
   delete prog;
   delete a48;
+  FT_Done_Face(face);
+  FT_Done_FreeType(ft);
 }
 
 void gfx::display() {
