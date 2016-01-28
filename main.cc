@@ -10,6 +10,7 @@
 #include <algorithm>
 
 void actual_main();
+
 int main(int argc, char **argv)
 {
   try {

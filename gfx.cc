@@ -30,7 +30,6 @@ void atlas::add_new_texture() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
   textures.push_back(texture);
 
@@ -54,7 +53,7 @@ void atlas::render_char(unsigned int i) {
   if (FT_Load_Char(faceptr, i, FT_LOAD_RENDER))
     die("Rendering character '%c' failed!\n", i);
 
-  if (texture_last_x + g->bitmap.width + 1 >= MAXWIDTH) {
+  if (texture_last_x + g->bitmap.width /* + 1 */ >= MAXWIDTH) {
     if (texture_last_y + row_height >= MAXWIDTH)
       add_new_texture();
     else {
@@ -72,6 +71,8 @@ void atlas::render_char(unsigned int i) {
   glActiveTexture(GL_TEXTURE0 + textures.back());
   glBindTexture(GL_TEXTURE_2D, textures.back());
 
+  printf("subimage: xoff %d | yoff %d | w %d | h %d\n", texture_last_x,
+      texture_last_y, g->bitmap.width, g->bitmap.rows);
   glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y,
       g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE,
       g->bitmap.buffer);
@@ -89,7 +90,7 @@ void atlas::render_char(unsigned int i) {
   glyphs[i].texture_offset_y = texture_last_y / (float)MAXWIDTH;
 
   row_height = std::max(row_height, g->bitmap.rows);
-  texture_last_x += g->bitmap.width + 1;
+  texture_last_x += g->bitmap.width /* + 1 */;
 }
 
 gfx::gfx()
