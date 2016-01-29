@@ -18,11 +18,8 @@ atlas::~atlas() {
 }
 
 void atlas::add_new_texture() {
-  puts("add_new_texture()");
-
   GLuint texture;
   glGenTextures(1, &texture);
-  printf("generated texture %d\n", texture);
   glActiveTexture(GL_TEXTURE0 + texture);
   glBindTexture(GL_TEXTURE_2D, texture);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, MAXWIDTH, MAXWIDTH, 0,
@@ -37,13 +34,13 @@ void atlas::add_new_texture() {
 
 const glyph* atlas::query(unsigned int codepoint) {
   if (codepoint >= glyphs.size())
-    glyphs.resize(codepoint+1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
+    glyphs.resize(codepoint+1, { false });
   if (!glyphs[codepoint].rendered)
-    render_char(codepoint);
+    render_glyph(codepoint);
   return &glyphs[codepoint];
 }
 
-void atlas::render_char(unsigned int i) {
+void atlas::render_glyph(unsigned int i) {
   FT_Set_Pixel_Sizes(faceptr, 0, font_height);
   FT_GlyphSlot g = faceptr->glyph;
 
@@ -52,7 +49,6 @@ void atlas::render_char(unsigned int i) {
 
   if (texture_last_x + g->bitmap.width >= MAXWIDTH) {
     if (texture_last_y + g->bitmap.rows + row_height >= MAXWIDTH) {
-      puts("y over");
       // y overflow
       add_new_texture();
       texture_last_x = 0;
@@ -66,16 +62,13 @@ void atlas::render_char(unsigned int i) {
     }
   }
 
-  glyphs[i].texture = textures.back();
+  glyphs[i].gltexture_rendered_to = textures.back();
 
   glyphs[i].rendered = true;
 
   glActiveTexture(GL_TEXTURE0 + textures.back());
   glBindTexture(GL_TEXTURE_2D, textures.back());
 
-  printf("render & subimage: '%c' to texture %d | xoff %d | yoff %d | w %d | h %d\n",
-      i, textures.back(), texture_last_x, texture_last_y, g->bitmap.width,
-      g->bitmap.rows);
   glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y,
       g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE,
       g->bitmap.buffer);
@@ -124,6 +117,7 @@ gfx::~gfx()
   delete a48;
   FT_Done_Face(face);
   FT_Done_FreeType(ft);
+  glDeleteBuffers(1, &vbo);
 }
 
 void gfx::display() {
@@ -157,10 +151,10 @@ void gfx::render_text(const char *text, atlas *a, float x, float y,
     const glyph *gi = a->query(*p);
 
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glActiveTexture(GL_TEXTURE0 + gi->texture);
-    glBindTexture(GL_TEXTURE_2D, gi->texture);
+    glActiveTexture(GL_TEXTURE0 + gi->gltexture_rendered_to);
+    glBindTexture(GL_TEXTURE_2D, gi->gltexture_rendered_to);
     glEnableVertexAttribArray(attribute_coord);
-    glUniform1i(uniform_texture, gi->texture);
+    glUniform1i(uniform_texture, gi->gltexture_rendered_to);
     glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
     /* Calculate the vertex and texture coordinates */
@@ -203,16 +197,6 @@ void gfx::render_text(const char *text, atlas *a, float x, float y,
     glDisableVertexAttribArray(attribute_coord);
   }
 }
-
-#if 0
-void gfx::draw(const matrix &mat)
-{
-  for (ull y = 0; y < mat.sy; y++)
-    for (ull x = 0; x < mat.sx; x++) {
-      screen_x = (x+1) * mat.
-    }
-}
-#endif
 
 // vim: et:sw=2
 

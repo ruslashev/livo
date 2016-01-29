@@ -10,18 +10,14 @@
 #include <vector>
 
 struct glyph {
-  GLuint texture;
   bool rendered;
-
+  GLuint gltexture_rendered_to;
   float advance_x;
   float advance_y;
-
   unsigned int bitmap_w;
   unsigned int bitmap_h;
-
   float bitmap_left;
   float bitmap_top;
-
   float texture_offset_x;
   float texture_offset_y;
 };
@@ -44,7 +40,7 @@ struct atlas {
   ~atlas();
   void add_new_texture();
   const glyph* query(unsigned int codepoint);
-  void render_char(unsigned int i);
+  void render_glyph(unsigned int i);
 };
 
 class gfx {
