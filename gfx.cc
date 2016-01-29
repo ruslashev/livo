@@ -4,6 +4,7 @@
 atlas::atlas(FT_Face face, int height) {
   faceptr = face;
   font_height = height;
+  texture_last_x = texture_last_y = row_height = 0;
   glyphs.resize(1, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
 
   add_new_texture();
@@ -32,10 +33,6 @@ void atlas::add_new_texture() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
   textures.push_back(texture);
-
-  texture_last_x = 0;
-  texture_last_y = 0;
-  row_height = 0;
 }
 
 const glyph* atlas::query(unsigned int codepoint) {
@@ -53,17 +50,22 @@ void atlas::render_char(unsigned int i) {
   if (FT_Load_Char(faceptr, i, FT_LOAD_RENDER))
     die("Rendering character '%c' failed!\n", i);
 
-  if (texture_last_x + g->bitmap.width /* + 1 */ >= MAXWIDTH) {
-    if (texture_last_y + row_height >= MAXWIDTH)
+  if (texture_last_x + g->bitmap.width >= MAXWIDTH) {
+    if (texture_last_y + g->bitmap.rows + row_height >= MAXWIDTH) {
+      puts("y over");
+      // y overflow
       add_new_texture();
-    else {
+      texture_last_x = 0;
+      texture_last_y = 0;
+      row_height = 0;
+    } else {
+      // x overflow
+      texture_last_x = 0;
       texture_last_y += row_height;
       row_height = 0;
-      texture_last_x = 0;
     }
   }
 
-  printf("rendering character '%c' to texture %d\n", i, textures.back());
   glyphs[i].texture = textures.back();
 
   glyphs[i].rendered = true;
@@ -71,8 +73,9 @@ void atlas::render_char(unsigned int i) {
   glActiveTexture(GL_TEXTURE0 + textures.back());
   glBindTexture(GL_TEXTURE_2D, textures.back());
 
-  printf("subimage: xoff %d | yoff %d | w %d | h %d\n", texture_last_x,
-      texture_last_y, g->bitmap.width, g->bitmap.rows);
+  printf("render & subimage: '%c' to texture %d | xoff %d | yoff %d | w %d | h %d\n",
+      i, textures.back(), texture_last_x, texture_last_y, g->bitmap.width,
+      g->bitmap.rows);
   glTexSubImage2D(GL_TEXTURE_2D, 0, texture_last_x, texture_last_y,
       g->bitmap.width, g->bitmap.rows, GL_ALPHA, GL_UNSIGNED_BYTE,
       g->bitmap.buffer);
@@ -90,7 +93,7 @@ void atlas::render_char(unsigned int i) {
   glyphs[i].texture_offset_y = texture_last_y / (float)MAXWIDTH;
 
   row_height = std::max(row_height, g->bitmap.rows);
-  texture_last_x += g->bitmap.width /* + 1 */;
+  texture_last_x += g->bitmap.width;
 }
 
 gfx::gfx()
