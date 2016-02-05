@@ -1,18 +1,14 @@
 #include "matrix.hh"
 
-matrix::matrix()
+template <typename T>
+void generic_mat::mat_init()
 {
-  sx = sx = 0;
-  charsize_x = charsize_y = 0;
+  sx = sy = 0;
   data = nullptr;
 }
 
-matrix::~matrix()
-{
-  deallocate_data();
-}
-
-void matrix::deallocate_data()
+template <typename T>
+void generic_mat::deallocate_data()
 {
   if (!data)
     return;
@@ -21,15 +17,27 @@ void matrix::deallocate_data()
   delete [] data;
 }
 
-void matrix::set_size(unsigned int nsx, unsigned int nsy)
+template <typename T>
+void generic_mat::set_size(unsigned int nsx, unsigned int nsy)
 {
   sx = nsx;
   sy = nsy;
 
   deallocate_data();
-  data = new cell* [sy];
+  data = new T* [sy];
   for (ull y = 0; y < sy; y++)
-    data[y] = new cell [sx];
+    data[y] = new T [sx];
+}
+
+matrix::matrix()
+{
+  mat_init();
+  charsize_x = charsize_y = 0;
+}
+
+matrix::~matrix()
+{
+  deallocate_data();
 }
 
 // vim: et:sw=2

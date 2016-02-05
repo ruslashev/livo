@@ -61,6 +61,18 @@ public:
   void draw(const matrix &mat);
 };
 
+struct render_cell {
+  GLuint background_vbo;
+  cell contained_cell;
+  glm::mat4 model_mat;
+  void set_pos_and_model_mat();
+};
+
+class render {
+  generic_mat<render_cell> needs_redrawing;
+  generic_mat<bool> needs_redrawing;
+public:
+
 #endif
 
 // vim: et:sw=2

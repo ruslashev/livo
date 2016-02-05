@@ -198,5 +198,12 @@ void gfx::render_text(const char *text, atlas *a, float x, float y,
   }
 }
 
+void render_cell::set_pos_and_model_mat(ull x, ull y, ui charsize_x, ui charsize_y)
+{
+  ui screen_pos_x = x * charsize_x, screen_pos_y = y * charsize_y;
+}
+
+void 
+
 // vim: et:sw=2
 
