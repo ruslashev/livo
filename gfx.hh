@@ -68,12 +68,20 @@ struct render_cell {
   void set_pos_and_model_mat();
 };
 
-class render {
-  generic_mat<render_cell> needs_redrawing;
-  generic_mat<bool> needs_redrawing;
+struct update_type {
+  bool background_color, foreground_color, character;
+};
+
+class render_matrix {
+  generic_mat<render_cell> cells;
+  generic_mat<update_type> needs_redrawing;
+  set_matrices_sizes(const matrix &mat);
+  void update();
 public:
+  void copy(const matrix& mat);
+  render_matrix(const matrix& mat);
+};
 
 #endif
 
 // vim: et:sw=2
-

@@ -203,7 +203,34 @@ void render_cell::set_pos_and_model_mat(ull x, ull y, ui charsize_x, ui charsize
   ui screen_pos_x = x * charsize_x, screen_pos_y = y * charsize_y;
 }
 
-void 
+void render_matrix::copy(const matrix& mat)
+{
+  for (ull y = 0; y < mat.sy; y++)
+    for (ull x = 0; x < mat.sx; x++) {
+      if (cells[y][x].contained_cell.background_color != mat[y][x].background_color)
+        needs_redrawing[y][x].background_color = 1;
+      if (cells[y][x].contained_cell.foreground_color != mat[y][x].foreground_color)
+        needs_redrawing[y][x].foreground_color = 1;
+      if (cells[y][x].contained_cell.character != mat[y][x].character)
+        needs_redrawing[y][x].character = 1;
+    }
+  update();
+}
+
+render_matrix::render_matrix(const matrix& mat)
+{
+  set_matrices_sizes(mat);
+}
+
+render_matrix::set_matrices_sizes(const matrix &mat)
+{
+  cells.set_size(mat.sx, mat.sy);
+  needs_redrawing.set_size(mat.sx, mat.sy);
+  for (ull y = 0; y < mat.sy; y++)
+    for (ull x = 0; x < mat.sx; x++) {
+      cells.set_pos_and_model_mat(x, y, mat.charsize_x, mat.charsize_y);
+      needs_redrawing = { 1, 1, 1 };
+    }
+}
 
 // vim: et:sw=2
-

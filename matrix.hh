@@ -30,4 +30,3 @@ public:
 #endif
 
 // vim: et:sw=2
-
